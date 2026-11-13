@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stretch cursor demo</title>
+<style>
+  :root { --ink:#141412; --cream:#F1ECDF; --mustard:#E0A91B; --olive:#4B5320; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Poppins, "Helvetica Neue", Arial, sans-serif; background:var(--ink); color:var(--cream); }
+  section { padding: 14vh 8vw; }
+  .light { background:var(--cream); color:var(--ink); }
+  .olive { background:var(--olive); }
+  h1 { font-size: clamp(40px, 8vw, 104px); line-height:.95; margin:0 0 28px; letter-spacing:-.02em; max-width: 12ch; }
+  h2 { font-size: clamp(28px, 4vw, 48px); margin:0 0 20px; letter-spacing:-.01em; }
+  p { font-size:18px; line-height:1.55; max-width:52ch; margin:0 0 28px; opacity:.85; }
+  nav { display:flex; gap:28px; padding:28px 8vw; font-size:15px; }
+  nav a { color:inherit; text-decoration:none; }
+  nav a:first-child { margin-right:auto; font-weight:700; }
+  .btn { display:inline-block; padding:16px 28px; border-radius:999px; background:var(--mustard); color:var(--ink); font-weight:600; text-decoration:none; border:0; font-size:16px; font-family:inherit; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:20px; margin-top:36px; }
+  .card { display:block; aspect-ratio: 4/3; border-radius:14px; background:var(--ink); color:var(--cream); padding:22px; text-decoration:none; font-weight:600; }
+  .card:nth-child(2) { background:var(--olive); }
+  .card:nth-child(3) { background:var(--mustard); color:var(--ink); }
+  footer { padding:36px 8vw; font-size:14px; opacity:.7; }
+  footer a { color:inherit; }
+  .touch-note { display:none; }
+  @media (hover: none), (pointer: coarse) { .touch-note { display:block; color:var(--mustard); opacity:1; } }
+</style>
+</head>
+<body>
+<nav><a href="#top">Stretch cursor</a><a href="#try">Try it</a><a href="#how">How it works</a></nav>
+
+<section id="top">
+  <h1>Move the mouse. Quickly.</h1>
+  <p>A ring that trails the pointer, stretches in the direction of travel, and fills in over anything clickable. It inverts against whatever is underneath, so it stays visible on any color.</p>
+  <p class="touch-note">You are on a touch device, so you get the normal cursor. That is on purpose. Try this on a computer.</p>
+  <a class="btn" href="#try">Hover this</a>
+</section>
+
+<section id="try" class="light">
+  <h2>Things to hover</h2>
+  <p>Links, buttons and form fields all trigger the filled state.</p>
+  <div class="grid">
+    <a class="card" href="#try">Dark card</a>
+    <a class="card" href="#try">Olive card</a>
+    <a class="card" href="#try">Mustard card</a>
+  </div>
+</section>
+
+<section id="how" class="olive">
+  <h2>How it behaves</h2>
+  <p>Mouse users only. Touch screens keep the native cursor. If someone has reduced motion turned on, the ring follows the pointer without the trailing or the stretch.</p>
+  <button class="btn" type="button">A button, for science</button>
+</section>
+
+<footer>Designed and directed by Kyle Covey. Built with Claude. <a href="#top">Back to top</a></footer>
+
+<!--
+  Stretch cursor
+  Paste this whole file just before the closing </body> tag of your page.
+  On a site builder, use its custom code field for the footer or end of body.
+
+  Mouse users only. Touch screens keep the normal cursor.
+  After pasting, scroll to the bottom and confirm the last line is </script>.
+-->
+<style>
+  .kc-on, .kc-on * { cursor: none !important; }
+  .kc-cursor { position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; z-index: 2147483647; mix-blend-mode: difference; }
+  .kc-grow { position: absolute; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .kc-ring { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 1.5px solid #fff; box-sizing: border-box; transition: background .2s; }
+  .kc-hover .kc-grow { transform: scale(1.8); }
+  .kc-hover .kc-ring { background: #fff; }
+  .kc-hidden .kc-cursor { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .kc-grow, .kc-ring { transition: none; }
+  }
+</style>
+<script>
+(function () {
+  // Only with a real mouse, and only on the live site (not inside the editor frame).
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  if (window.self !== window.top) return;
+
+  var root = document.documentElement;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var HOVER = 'a, button, [role="button"], input, select, textarea, label, summary';
+
+  var el = document.createElement('div');
+  el.className = 'kc-cursor';
+  el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = '<span class="kc-grow"><span class="kc-ring"></span></span>';
+  document.body.appendChild(el);
+  var ring = el.querySelector('.kc-ring');
+  root.classList.add('kc-on', 'kc-hidden');
+
+  var mx = -100, my = -100;   // mouse position
+  var cx = -100, cy = -100;   // ring position (trails the mouse)
+  var px = 0, py = 0;         // mouse position last frame
+  var squash = 0, angle = 0, over = null;
+
+  document.addEventListener('mousemove', function (e) {
+    mx = e.clientX; my = e.clientY;
+    root.classList.remove('kc-hidden');
+  }, { passive: true });
+
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target.closest ? e.target.closest(HOVER) : null;
+    if (t === over) return;
+    over = t;
+    root.classList.toggle('kc-hover', !!t);
+  });
+
+  document.addEventListener('mouseleave', function () {
+    over = null;
+    root.classList.remove('kc-hover');
+    root.classList.add('kc-hidden');
+  });
+
+  function tick() {
+    // Ease the ring toward the mouse.
+    var k = reduce ? 1 : 0.17;
+    cx += (mx - cx) * k;
+    cy += (my - cy) * k;
+    el.style.transform = 'translate(' + cx + 'px,' + cy + 'px)';
+
+    // Stretch along the direction of travel, more at higher speed.
+    var dx = mx - px, dy = my - py;
+    var speed = Math.min(Math.hypot(dx, dy) * 4, 150);
+    var target = (reduce || over) ? 0 : speed / 300;
+    squash += (target - squash) * 0.17;
+    if (speed > 20 && !reduce) angle = Math.atan2(dy, dx) * 57.2958;
+    ring.style.transform = 'rotate(' + angle + 'deg) scale(' + (1 + squash) + ',' + (1 - squash) + ')';
+
+    px = mx; py = my;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>

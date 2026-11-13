@@ -1,0 +1,82 @@
+<!--
+  Stretch cursor
+  Paste this whole file just before the closing </body> tag of your page.
+  On a site builder, use its custom code field for the footer or end of body.
+
+  Mouse users only. Touch screens keep the normal cursor.
+  After pasting, scroll to the bottom and confirm the last line is </script>.
+-->
+<style>
+  .kc-on, .kc-on * { cursor: none !important; }
+  .kc-cursor { position: fixed; top: 0; left: 0; width: 0; height: 0; pointer-events: none; z-index: 2147483647; mix-blend-mode: difference; }
+  .kc-grow { position: absolute; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .kc-ring { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 1.5px solid #fff; box-sizing: border-box; transition: background .2s; }
+  .kc-hover .kc-grow { transform: scale(1.8); }
+  .kc-hover .kc-ring { background: #fff; }
+  .kc-hidden .kc-cursor { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .kc-grow, .kc-ring { transition: none; }
+  }
+</style>
+<script>
+(function () {
+  // Only with a real mouse, and only on the live site (not inside the editor frame).
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  if (window.self !== window.top) return;
+
+  var root = document.documentElement;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var HOVER = 'a, button, [role="button"], input, select, textarea, label, summary';
+
+  var el = document.createElement('div');
+  el.className = 'kc-cursor';
+  el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = '<span class="kc-grow"><span class="kc-ring"></span></span>';
+  document.body.appendChild(el);
+  var ring = el.querySelector('.kc-ring');
+  root.classList.add('kc-on', 'kc-hidden');
+
+  var mx = -100, my = -100;   // mouse position
+  var cx = -100, cy = -100;   // ring position (trails the mouse)
+  var px = 0, py = 0;         // mouse position last frame
+  var squash = 0, angle = 0, over = null;
+
+  document.addEventListener('mousemove', function (e) {
+    mx = e.clientX; my = e.clientY;
+    root.classList.remove('kc-hidden');
+  }, { passive: true });
+
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target.closest ? e.target.closest(HOVER) : null;
+    if (t === over) return;
+    over = t;
+    root.classList.toggle('kc-hover', !!t);
+  });
+
+  document.addEventListener('mouseleave', function () {
+    over = null;
+    root.classList.remove('kc-hover');
+    root.classList.add('kc-hidden');
+  });
+
+  function tick() {
+    // Ease the ring toward the mouse.
+    var k = reduce ? 1 : 0.17;
+    cx += (mx - cx) * k;
+    cy += (my - cy) * k;
+    el.style.transform = 'translate(' + cx + 'px,' + cy + 'px)';
+
+    // Stretch along the direction of travel, more at higher speed.
+    var dx = mx - px, dy = my - py;
+    var speed = Math.min(Math.hypot(dx, dy) * 4, 150);
+    var target = (reduce || over) ? 0 : speed / 300;
+    squash += (target - squash) * 0.17;
+    if (speed > 20 && !reduce) angle = Math.atan2(dy, dx) * 57.2958;
+    ring.style.transform = 'rotate(' + angle + 'deg) scale(' + (1 + squash) + ',' + (1 - squash) + ')';
+
+    px = mx; py = my;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
